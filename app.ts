@@ -1,67 +1,87 @@
-// オブジェクトの定義
-interface Person1 {
-  name: string;
-  age: number;
-  greet(phrase: string): void;
+// ## ジェネリック型 追加の型情報を提供できる型
+const names: Array<string> = []; // string[] と同義
+
+// promiseが最終的にstring型を返す
+const promise = new Promise<string>((resolve, reject) => {
+  setTimeout(() => {
+    resolve('完了');
+  }, 2000);
+});
+
+// ## Generic関数
+
+// 通常
+function merge(objectA: object, objectB: object) {
+  return Object.assign(objectA, objectB);
 }
 
-let user1: Person1;
+const mergedObj = merge({ name: 'taro' }, { age: 30 });
+// mergedObj.age; // mergedObjはobjectということしかわからないのでエラーになっている
 
-user1 = {
-  name: 'Max',
-  age: 30,
-  greet(phrase: string) {
-    console.log(phrase + ' ' + this.name);
-  },
-};
+console.log();
+// ↓
+// ジェネリック関数
+// ** TとUは「異なる型が渡される」ということのみ伝えていて、実際の型は実行時に動的にきまる。 **
+// extendsでTやUに制約をつけることができる
+function merge2<T extends object, U extends object>(objectA: T, objectB: U) {
+  return Object.assign(objectA, objectB);
+}
+// (type parameter) U in merge2<T, U>(objectA: T, objectB: U): T & U
+// TとUの交差型を返すことがわかるようになる
 
-user1.greet;
+// 型推論
+// const mergedObj2: {
+//   name: string;
+// } & {
+//     age: number;
+// }
+const mergedObj2 = merge2({ name: 'taro' }, { age: 30 });
+mergedObj2.age; // mergedObjはobjectということしかわからないのでエラーになっている
 
-// interface と typeの違い
-// interfaceはobjectの型のみを定義できる
-// classのinterfaceを実装できる
-interface Named {
-  readonly name: string; // 初期化以降readonlyにする
-  outputName?: string; // ? であってもなくてもOK
+interface Lengthy {
+  length: number;
 }
 
-// Named interfaceの継承
-interface Greetable extends Named {
-  greet(phrase: string): void;
+function countAndDescribe<T extends Lengthy>(element: T): [T, string] {
+  let descriptionText = '値がありません';
+  if (element.length > 0) {
+    descriptionText = '値は' + element.length + '個です。';
+  }
+  return [element, descriptionText];
 }
 
-// interfaceは複数指定できる
-// interfaceの型通りに実装されていなくてはならない
-// interfaceは実装を持たない ⇔ abstract classはabstractも実装も混在している
-class Person implements Greetable {
-  name: string; // <= interfaceでreadonlyになっていると、ここも自動的にreadonlyとなる
-  age = 30; // interfaceにないものの実装も可能
+// # keyof制約
+function extractAndConvert<T extends object, U extends keyof T>(obj: T, key: U) {
+  return 'Value: ' + obj[key];
+}
 
-  constructor(n: string) {
-    this.name = n;
+extractAndConvert({ name: 'max' }, 'name');
+
+// ジェネリッククラス
+class DataStorage<T> {
+  private data: T[] = [];
+
+  addItem(item: T) {
+    this.data.push(item);
   }
 
-  greet(phrase: string) {
-    console.log(phrase + ' ' + this.name);
+  removeItem(item: T) {
+    this.data.splice(this.data.indexOf(item), 1);
+  }
+
+  getItems() {
+    return [...this.data];
   }
 }
 
-let user2: Greetable;
-user2 = new Person('Max');
-user2.greet('Hello I am');
+const textStorage = new DataStorage<string>();
+textStorage.addItem('Data1');
+textStorage.addItem('Data2');
+textStorage.removeItem('Data2');
+console.log(textStorage.getItems());
 
-// 関数型としてのinterface
-
-// Function型
-// type AddFn = (a: number, b: number) => number;
-
-//interfaceでの関数の型の定義
-interface AddFn {
-  (a: number, B: number): number;
-}
-
-let add: AddFn;
-
-add = (n1: number, n2: number) => {
-  return n1 + n2;
-};
+const numberStorage = new DataStorage<number>();
+numberStorage.addItem(1);
+numberStorage.addItem(2);
+numberStorage.removeItem(1);
+console.log(numberStorage.getItems());

@@ -11,8 +11,8 @@ abstract class AbDepartment {
 
   constructor(protected readonly id: string, public name: string) {}
 
-  // 実装内容は空出ないといけない
-  abstract describe(this: Department): void;
+  // 実装内容は空でないといけない
+  abstract describe(this: AbDepartment): void;
 
   addEmployee(employee: string) {
     this.employees.push(employee);
@@ -42,13 +42,13 @@ const abITDepartment = new AbITDepartment('d2', ['']);
 abITDepartment.describe();
 
 //シングルトンクラス
-class AccountingDepartment2 extends Department {
+class AccountingDepartment2 extends AbITDepartment {
   private lastReport: string;
   private static instance: AccountingDepartment2;
 
   // constructorをprivateにすると、外部からnewできなくなる
   private constructor(id: string, private reports: string[]) {
-    super(id, 'Accounting');
+    super(id, ['test']);
     this.lastReport = reports[0];
   }
 
