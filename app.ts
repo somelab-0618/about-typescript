@@ -1,3 +1,17 @@
+// Drag & Drop
+interface Draggable {
+  dragStartHandler(event: DragEvent): void;
+  dragEndHandler(event: DragEvent): void;
+}
+interface DragTarget {
+  // Dragしている場所がDropが有効な場所かどうかを判定
+  dragOverHandler(event: DragEvent): void;
+  // Dropが起きたときに呼ばれる
+  dropHandler(event: DragEvent): void;
+  // Dragして元の要素を離れたときに呼ばれる
+  dragLeaveHandler(event: DragEvent): void;
+}
+
 // Project Type 型をクラスを使って定義する
 enum ProjectStatus {
   Active,
@@ -49,6 +63,18 @@ class ProjectState extends State<Project> {
       ProjectStatus.Active
     );
     this.projects.push(newProject);
+    this.updateListeners();
+  }
+
+  moveProject(projectId: string, newStatus: ProjectStatus) {
+    const project = this.projects.find((prj) => prj.id === projectId);
+    if (project && project.status !== newStatus) {
+      project.status = newStatus;
+      this.updateListeners();
+    }
+  }
+
+  private updateListeners() {
     for (const listerFn of this.listeners) {
       // 配列のコピーを渡すためsliceを使う
       listerFn(this.projects.slice());
@@ -148,7 +174,10 @@ abstract class Component<T extends HTMLElement, U extends HTMLElement> {
 }
 
 // Project Item
-class ProjectItem extends Component<HTMLUListElement, HTMLLIElement> {
+class ProjectItem
+  extends Component<HTMLUListElement, HTMLLIElement>
+  implements Draggable
+{
   private project: Project;
 
   get manday() {
@@ -167,7 +196,21 @@ class ProjectItem extends Component<HTMLUListElement, HTMLLIElement> {
     this.renderContent();
   }
 
-  configure(): void {}
+  @Autobind
+  dragStartHandler(event: DragEvent): void {
+    event.dataTransfer!.setData('text/plain', this.project.id);
+    event.dataTransfer!.effectAllowed = 'move';
+  }
+
+  dragEndHandler(event: DragEvent): void {
+    console.log('drag終了');
+  }
+
+  configure(): void {
+    this.element.addEventListener('dragstart', this.dragStartHandler);
+    this.element.addEventListener('dragend', this.dragEndHandler);
+  }
+
   renderContent(): void {
     this.element.querySelector('h2')!.textContent = this.project.title;
     this.element.querySelector('h3')!.textContent = this.manday;
@@ -176,7 +219,10 @@ class ProjectItem extends Component<HTMLUListElement, HTMLLIElement> {
 }
 
 // ProjectList Class
-class ProjectList extends Component<HTMLDivElement, HTMLElement> {
+class ProjectList
+  extends Component<HTMLDivElement, HTMLElement>
+  implements DragTarget
+{
   assignedProjects: Project[];
 
   constructor(private type: 'active' | 'finished') {
@@ -187,7 +233,37 @@ class ProjectList extends Component<HTMLDivElement, HTMLElement> {
     this.renderContent();
   }
 
+  @Autobind
+  dragOverHandler(event: DragEvent): void {
+    if (event.dataTransfer && event.dataTransfer.types[0] === 'text/plain') {
+      // デフォルトのドラッグイベントはドロップを許可していないので、
+      // preventDefaultでドロップ非許可を許可にできる
+      event.preventDefault();
+      const listEl = this.element.querySelector('ul')!;
+      listEl.classList.add('droppable');
+    }
+  }
+
+  @Autobind
+  dropHandler(event: DragEvent): void {
+    const prjId = event.dataTransfer!.getData('text/plain');
+    projectState.moveProject(
+      prjId,
+      this.type === 'active' ? ProjectStatus.Active : ProjectStatus.Finished
+    );
+  }
+
+  @Autobind
+  dragLeaveHandler(_2: DragEvent): void {
+    const listEl = this.element.querySelector('ul')!;
+    listEl.classList.remove('droppable');
+  }
+
   configure() {
+    this.element.addEventListener('dragover', this.dragOverHandler);
+    this.element.addEventListener('drop', this.dropHandler);
+    this.element.addEventListener('dragleave', this.dragLeaveHandler);
+
     projectState.addListener((projects: Project[]) => {
       const relevantProjects = projects.filter((prj) => {
         if (this.type === 'active') {
